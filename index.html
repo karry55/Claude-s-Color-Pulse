@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>色彩反应挑战</title>
+<style>
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  overflow-x: hidden;
+  padding: 16px;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.08) 0%, transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(255,255,255,0.06) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.game-container {
+  width: 100%;
+  max-width: 480px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+  padding: 32px 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ===== 头部信息 ===== */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.score-box {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 10px 18px;
+  border: 1px solid rgba(255,255,255,0.15);
+  text-align: center;
+  min-width: 80px;
+}
+
+.score-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 2px;
+}
+
+.score-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.high-score-box {
+  text-align: center;
+}
+
+.high-score-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 2px;
+}
+
+.high-score-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+}
+
+.combo-display {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffd700;
+  text-align: center;
+  min-height: 20px;
+  transition: all 0.2s ease;
+}
+
+.combo-display.pop {
+  animation: comboPop 0.4s ease;
+}
+
+@keyframes comboPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+/* ===== 目标颜色区域 ===== */
+.target-section {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.target-label {
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.target-color-display {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  margin: 0 auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 -3px 0 rgba(0,0,0,0.1), inset 0 3px 0 rgba(255,255,255,0.3);
+  transition: background-color 0.25s ease;
+  border: 3px solid rgba(255,255,255,0.3);
+}
+
+.target-hex {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 倒计时进度条 ===== */
+.timer-section {
+  margin-bottom: 24px;
+}
+
+.timer-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.timer-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.1s linear, background-color 0.3s ease;
+}
+
+.timer-bar-fill.safe   { background: linear-gradient(90deg, #4ade80, #22c55e); }
+.timer-bar-fill.warn   { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+.timer-bar-fill.danger { background: linear-gradient(90deg, #f87171, #ef4444); animation: pulseDanger 0.5s infinite; }
+
+@keyframes pulseDanger {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+.timer-text {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+}
+
+.timer-seconds {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+
+/* ===== 色块网格 ===== */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.color-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+.color-btn {
+  aspect-ratio: 1;
+  border-radius: 18px;
+  border: 2px solid rgba(255,255,255,0.25);
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.3);
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.color-btn:hover {
+  transform: scale(1.06);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.4);
+  border-color: rgba(255,255,255,0.5);
+}
+
+.color-btn:active {
+  transform: scale(0.94);
+  transition: transform 0.08s ease;
+}
+
+.color-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* ===== 动画状态 ===== */
+.color-btn.correct {
+  animation: correctPulse 0.5s ease;
+  border-color: #4ade80 !important;
+  box-shadow: 0 0 32px rgba(74,222,128,0.5), 0 4px 16px rgba(0,0,0,0.15) !important;
+}
+
+@keyframes correctPulse {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.color-btn.wrong {
+  animation: wrongShake 0.5s ease;
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 32px rgba(239,68,68,0.5), 0 4px 16px rgba(0,0,0,0.15) !important;
+}
+
+@keyframes wrongShake {
+  0%, 100% { transform: translateX(0); }
+  15%      { transform: translateX(-8px); }
+  30%      { transform: translateX(8px); }
+  45%      { transform: translateX(-6px); }
+  60%      { transform: translateX(6px); }
+  75%      { transform: translateX(-3px); }
+  90%      { transform: translateX(3px); }
+}
+
+/* 正确/错误反馈闪光 */
+.flash-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.flash-overlay.green { background: radial-gradient(circle, rgba(74,222,128,0.25), transparent 70%); opacity: 1; }
+.flash-overlay.red   { background: radial-gradient(circle, rgba(239,68,68,0.25), transparent 70%); opacity: 1; }
+
+/* ===== 难度指示 ===== */
+.difficulty-display {
+  text-align: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 6px;
+}
+
+.difficulty-display span {
+  font-weight: 700;
+  color: rgba(255,255,255,0.8);
+}
+
+/* ===== 游戏结束遮罩 ===== */
+.game-over-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.game-over-overlay.hidden {
+  display: none;
+}
+
+.game-over-title {
+  font-size: 36px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.game-over-score {
+  font-size: 56px;
+  font-weight: 800;
+  color: #ffd700;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.game-over-detail {
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 24px;
+}
+
+.game-over-new-high {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 16px;
+  animation: comboPop 0.5s ease infinite;
+}
+
+.restart-btn {
+  padding: 14px 40px;
+  border-radius: 50px;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 16px rgba(102,126,234,0.4);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.restart-btn:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 24px rgba(102,126,234,0.6);
+}
+
+.restart-btn:active {
+  transform: scale(0.95);
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 400px) {
+  .game-container {
+    padding: 24px 18px;
+    border-radius: 20px;
+  }
+  .target-color-display {
+    width: 90px;
+    height: 90px;
+  }
+  .color-grid {
+    gap: 10px;
+  }
+  .color-btn {
+    border-radius: 14px;
+  }
+  .score-value {
+    font-size: 24px;
+  }
+}
+
+@media (min-width: 768px) {
+  .color-grid {
+    gap: 16px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="flash-overlay" id="flashOverlay"></div>
+
+<div class="game-container" id="gameContainer">
+  <div class="header">
+    <div class="score-box">
+      <div class="score-label">得分</div>
+      <div class="score-value" id="score">0</div>
+    </div>
+    <div class="high-score-box">
+      <div class="high-score-label">最高分</div>
+      <div class="high-score-value" id="highScore">0</div>
+    </div>
+    <div>
+      <div class="difficulty-display">难度 <span id="difficultyLabel">普通</span></div>
+      <div class="combo-display" id="comboText"></div>
+    </div>
+  </div>
+
+  <div class="target-section">
+    <div class="target-label">匹配此颜色</div>
+    <div class="target-color-display" id="targetDisplay"></div>
+    <div class="target-hex" id="targetHex"></div>
+  </div>
+
+  <div class="timer-section">
+    <div class="timer-bar-track">
+      <div class="timer-bar-fill safe" id="timerFill" style="width: 100%;"></div>
+    </div>
+    <div class="timer-text">
+      <span>剩余时间</span>
+      <span class="timer-seconds" id="timerSeconds">5.0s</span>
+    </div>
+  </div>
+
+  <div class="color-grid" id="colorGrid"></div>
+
+  <div class="game-over-overlay hidden" id="gameOverOverlay">
+    <div class="game-over-title">游戏结束</div>
+    <div class="game-over-score" id="finalScore">0</div>
+    <div class="game-over-detail" id="finalDetail"></div>
+    <div class="game-over-new-high hidden" id="newHighBadge">新纪录!</div>
+    <button class="restart-btn" id="restartBtn">重新开始</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  /* ============ 颜色工具 ============ */
+  function hexToRgb(hex) {
+    var r = parseInt(hex.slice(1,3), 16);
+    var g = parseInt(hex.slice(3,5), 16);
+    var b = parseInt(hex.slice(5,7), 16);
+    return [r, g, b];
+  }
+
+  function colorDistance(hex1, hex2) {
+    var rgb1 = hexToRgb(hex1);
+    var rgb2 = hexToRgb(hex2);
+    return Math.sqrt(Math.pow(rgb1[0]-rgb2[0], 2) + Math.pow(rgb1[1]-rgb2[1], 2) + Math.pow(rgb1[2]-rgb2[2], 2));
+  }
+
+  function randomHex() {
+    var r = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
+    var g = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
+    var b = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
+    return "#" + r + g + b;
+  }
+
+  function distinctColor(base, minDist, attempts) {
+    var best = null;
+    var bestDist = 0;
+    for (var i = 0; i < attempts; i++) {
+      var c = randomHex();
+      var d = colorDistance(base, c);
+      if (d >= minDist) return c;
+      if (d > bestDist) { bestDist = d; best = c; }
+    }
+    return best;
+  }
+
+  /* ============ DOM 引用 ============ */
+  function $(id) { return document.getElementById(id); }
+
+  var targetDisplay   = $("targetDisplay");
+  var targetHex       = $("targetHex");
+  var timerFill       = $("timerFill");
+  var timerSeconds    = $("timerSeconds");
+  var colorGrid       = $("colorGrid");
+  var scoreEl         = $("score");
+  var highScoreEl     = $("highScore");
+  var comboText       = $("comboText");
+  var difficultyLabel = $("difficultyLabel");
+  var flashOverlay    = $("flashOverlay");
+  var gameOverOverlay = $("gameOverOverlay");
+  var finalScoreEl    = $("finalScore");
+  var finalDetail     = $("finalDetail");
+  var newHighBadge    = $("newHighBadge");
+  var restartBtn      = $("restartBtn");
+
+  /* ============ 状态 ============ */
+  var HIGH_SCORE_KEY = "colorMatch_highScore";
+
+  var score      = 0;
+  var highScore  = 0;
+  var combo      = 0;
+  var difficulty = 1;
+  var timeLeft   = 5.0;
+  var maxTime    = 5.0;
+  var timerInterval = null;
+  var targetColor  = null;
+  var roundActive  = false;
+
+  /* ============ 难度配置 ============ */
+  var DIFFICULTY_CONFIG = [
+    { name: "入门", time: 6.0, buttons: 3, distractorDist: 130, cols: 3 },
+    { name: "普通", time: 5.0, buttons: 4, distractorDist: 110, cols: 2 },
+    { name: "进阶", time: 4.5, buttons: 4, distractorDist: 90,  cols: 2 },
+    { name: "困难", time: 4.0, buttons: 6, distractorDist: 75,  cols: 3 },
+    { name: "地狱", time: 3.5, buttons: 6, distractorDist: 60,  cols: 3 }
+  ];
+
+  function getConfig() {
+    var idx = Math.min(difficulty - 1, DIFFICULTY_CONFIG.length - 1);
+    return DIFFICULTY_CONFIG[idx];
+  }
+
+  /* ============ 音效模拟 (视觉脉冲) ============ */
+  function visualFeedback(type) {
+    flashOverlay.classList.add(type);
+    setTimeout(function () { flashOverlay.classList.remove(type); }, 200);
+  }
+
+  /* ============ 高亮按钮 ============ */
+  function highlightButtons(correctIndex) {
+    var btns = colorGrid.children;
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.add(i === correctIndex ? "correct" : "wrong");
+    }
+    setTimeout(function () {
+      for (var j = 0; j < btns.length; j++) {
+        btns[j].classList.remove("correct", "wrong");
+      }
+    }, 500);
+  }
+
+  /* ============ 生成新轮次 ============ */
+  function generateRound() {
+    var cfg = getConfig();
+    targetColor = randomHex();
+
+    var distractors = [];
+    for (var i = 0; i < cfg.buttons - 1; i++) {
+      distractors.push(distinctColor(targetColor, cfg.distractorDist, 30));
+    }
+
+    var colors = distractors.slice();
+    var correctIndex = Math.floor(Math.random() * cfg.buttons);
+    colors.splice(correctIndex, 0, targetColor);
+
+    // 更新目标
+    targetDisplay.style.backgroundColor = targetColor;
+    targetHex.textContent = targetColor.toUpperCase();
+
+    // 生成色块按钮
+    colorGrid.className = "color-grid cols-" + cfg.cols;
+    colorGrid.innerHTML = "";
+    for (var k = 0; k < colors.length; k++) {
+      (function (idx, correct) {
+        var btn = document.createElement("button");
+        btn.className = "color-btn";
+        btn.style.backgroundColor = colors[idx];
+        btn.setAttribute("role", "button");
+        btn.setAttribute("aria-label", "Color option " + (idx + 1));
+        btn.addEventListener("click", function () { onAnswer(idx, correct); });
+        colorGrid.appendChild(btn);
+      })(k, correctIndex);
+    }
+  }
+
+  /* ============ 回答处理 ============ */
+  function onAnswer(chosen, correct) {
+    if (!roundActive) return;
+    roundActive = false;
+    clearInterval(timerInterval);
+
+    if (chosen === correct) {
+      combo++;
+      score += 10;
+      visualFeedback("green");
+
+      if (combo >= 3) {
+        comboText.textContent = "连击 x" + combo + "!";
+        comboText.classList.remove("pop");
+        void comboText.offsetWidth;
+        comboText.classList.add("pop");
+      } else {
+        comboText.textContent = "";
+      }
+
+      // 奖励时间
+      timeLeft = Math.min(timeLeft + 1.0, maxTime + 1.5);
+
+      // 难度提升：每50分升一级
+      if (score % 50 === 0 && difficulty < DIFFICULTY_CONFIG.length) {
+        difficulty++;
+        maxTime = getConfig().time;
+        timeLeft = maxTime;
+      }
+
+      highlightButtons(correct);
+      updateUI();
+      setTimeout(startRound, 500);
+    } else {
+      combo = 0;
+      comboText.textContent = "";
+      visualFeedback("red");
+      highlightButtons(correct);
+      timeLeft = Math.max(0, timeLeft - 3);
+
+      updateUI();
+
+      if (timeLeft <= 0) {
+        endGame();
+      } else {
+        setTimeout(startRound, 500);
+      }
+    }
+  }
+
+  /* ============ 计时器 ============ */
+  function startTimer() {
+    var stepMs = 50;
+    timerInterval = setInterval(function () {
+      timeLeft -= stepMs / 1000;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        clearInterval(timerInterval);
+        roundActive = false;
+        endGame();
+      }
+      updateTimerUI();
+    }, stepMs);
+  }
+
+  function updateTimerUI() {
+    var pct = Math.max(0, (timeLeft / maxTime) * 100);
+    timerFill.style.width = pct + "%";
+    timerSeconds.textContent = timeLeft.toFixed(1) + "s";
+
+    timerFill.classList.remove("safe", "warn", "danger");
+    if (pct > 50) {
+      timerFill.classList.add("safe");
+    } else if (pct > 20) {
+      timerFill.classList.add("warn");
+    } else {
+      timerFill.classList.add("danger");
+    }
+  }
+
+  function updateUI() {
+    scoreEl.textContent = score;
+    highScoreEl.textContent = highScore;
+
+    var cfg = getConfig();
+    difficultyLabel.textContent = cfg.name;
+    maxTime = cfg.time;
+    if (timeLeft > maxTime) timeLeft = maxTime;
+    updateTimerUI();
+  }
+
+  /* ============ 轮次控制 ============ */
+  function startRound() {
+    generateRound();
+    if (timeLeft > maxTime) timeLeft = maxTime;
+    if (timeLeft <= 0) { endGame(); return; }
+    updateUI();
+    roundActive = true;
+    startTimer();
+  }
+
+  /* ============ 游戏结束 ============ */
+  function endGame() {
+    roundActive = false;
+    clearInterval(timerInterval);
+    timerFill.style.width = "0%";
+    timerFill.classList.remove("safe", "warn", "danger");
+    timerFill.classList.add("danger");
+    timerSeconds.textContent = "0.0s";
+
+    var isNewHigh = score > highScore;
+    if (isNewHigh) {
+      highScore = score;
+      localStorage.setItem(HIGH_SCORE_KEY, highScore);
+      highScoreEl.textContent = highScore;
+    }
+
+    finalScoreEl.textContent = score;
+    finalDetail.textContent = "难度: " + getConfig().name + " | 最高连击: " + combo;
+    if (isNewHigh && score > 0) {
+      newHighBadge.classList.remove("hidden");
+    } else {
+      newHighBadge.classList.add("hidden");
+    }
+    gameOverOverlay.classList.remove("hidden");
+
+    visualFeedback("red");
+  }
+
+  function restart() {
+    gameOverOverlay.classList.add("hidden");
+    score = 0;
+    combo = 0;
+    difficulty = 1;
+    maxTime = DIFFICULTY_CONFIG[0].time;
+    timeLeft = maxTime;
+    comboText.textContent = "";
+    updateUI();
+    startRound();
+  }
+
+  /* ============ 初始化 ============ */
+  function init() {
+    var saved = localStorage.getItem(HIGH_SCORE_KEY);
+    if (saved) highScore = parseInt(saved, 10) || 0;
+    highScoreEl.textContent = highScore;
+
+    restartBtn.addEventListener("click", restart);
+    restart();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
